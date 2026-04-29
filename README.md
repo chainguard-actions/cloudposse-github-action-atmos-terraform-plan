@@ -1,5 +1,7 @@
 # cloudposse/github-action-atmos-terraform-plan
 
+Atmos Terraform Plan
+
 Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/cloudposse/github-action-atmos-terraform-plan](https://github.com/cloudposse/github-action-atmos-terraform-plan).
 
 ## Versions

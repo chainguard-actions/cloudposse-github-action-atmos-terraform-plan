@@ -1,5 +1,6 @@
 {
   "owner": "cloudposse",
   "name": "github-action-atmos-terraform-plan",
-  "visibility": ""
+  "visibility": "internal",
+  "description": "Atmos Terraform Plan"
 }

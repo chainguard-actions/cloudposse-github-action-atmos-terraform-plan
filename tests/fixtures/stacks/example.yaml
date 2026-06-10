@@ -1,0 +1,30 @@
+vars:
+  stage: example
+
+components:
+  terraform:
+    mycomponent:
+      vars: {}
+      settings:
+        github:
+          actions_enabled: false
+        integrations:
+          github:
+            gitops:
+              opentofu-version: ""
+              terraform-version: ""
+              infracost-enabled: false
+              role:
+                plan: ""
+              artifact-storage:
+                region: ""
+                role: ""
+                table: ""
+                bucket: ""
+                plan-repository-type: ""
+                blob-account-name: ""
+                blob-container-name: ""
+                metadata-repository-type: ""
+                cosmos-container-name: ""
+                cosmos-database-name: ""
+                cosmos-endpoint: ""

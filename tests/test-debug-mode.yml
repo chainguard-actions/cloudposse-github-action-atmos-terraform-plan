@@ -1,0 +1,40 @@
+name: Test Atmos Terraform Plan - Debug Mode
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run atmos terraform plan action with debug enabled
+        id: action
+        uses: .
+        with:
+          component: test-component
+          stack: test-stack
+          sha: ${{ github.sha }}
+          atmos-config-path: ${{ github.workspace }}/tests/fixtures/atmos-config
+          drift-detection-mode-enabled: 'false'
+          plan-storage: 'false'
+          skip-checkout: 'true'
+          debug: 'true'
+          token: ${{ github.token }}
+
+      - name: Assert action completed successfully
+        run: |
+          echo "Action completed without error"
+          echo "PASS: debug mode did not cause action failure"
+
+      - name: Assert plan_file output is empty (no plan ran)
+        env:
+          ACTUAL: ${{ steps.action.outputs.plan_file }}
+        run: |
+          echo "actual plan_file: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "PASS: plan_file is empty as expected (github-actions-enabled=false)"
+          else
+            echo "FAIL: expected plan_file to be empty but got: $ACTUAL"
+            exit 1
+          fi

@@ -1,0 +1,11 @@
+vars:
+  stage: test
+
+components:
+  terraform:
+    mycomp:
+      settings:
+        github:
+          actions_enabled: false
+      vars:
+        enabled: false

@@ -1,0 +1,14 @@
+name: Release
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  github-action:
+    uses: cloudposse/.github/.github/workflows/shared-release-branches.yml@8244c7c9142e92281e7841f655fa48e9ceb9b454 # main
+    secrets: inherit

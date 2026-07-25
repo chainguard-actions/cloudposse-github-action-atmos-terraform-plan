@@ -1,0 +1,33 @@
+vars:
+  stage: test-stack
+
+components:
+  terraform:
+    test-component:
+      vars: {}
+      settings:
+        github:
+          actions_enabled: false
+        pro:
+          enabled: false
+        integrations:
+          github:
+            gitops:
+              opentofu-version: ""
+              terraform-version: ""
+              infracost-enabled: false
+              role:
+                plan: ""
+                apply: ""
+              artifact-storage:
+                region: ""
+                role: ""
+                table: ""
+                bucket: ""
+                plan-repository-type: ""
+                blob-account-name: ""
+                blob-container-name: ""
+                metadata-repository-type: ""
+                cosmos-container-name: ""
+                cosmos-database-name: ""
+                cosmos-endpoint: ""

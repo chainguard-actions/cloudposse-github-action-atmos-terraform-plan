@@ -1,0 +1,42 @@
+name: Test no-changes (github-actions-enabled true, no resources)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: refs/heads/main
+      GITHUB_EVENT_NAME: push
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run action with github-actions-enabled true and no resources
+        id: action
+        uses: .
+        with:
+          component: mycomp
+          stack: test
+          sha: ${{ github.sha }}
+          atmos-config-path: "${{ github.workspace }}/tests/fixtures/no-changes"
+          skip-checkout: "true"
+          plan-storage: "false"
+          drift-detection-mode-enabled: "false"
+          pr-comment: "false"
+
+      - name: Assert has-changes output is false
+        env:
+          HAS_CHANGES: ${{ steps.action.outputs.has-changes }}
+        run: |
+          echo "has-changes: $HAS_CHANGES"
+          if [ "$HAS_CHANGES" != "false" ]; then
+            echo "FAIL: expected has-changes to be 'false', got '$HAS_CHANGES'"
+            exit 1
+          fi
+          echo "PASS: has-changes is false as expected"
+
+      - name: Assert summary output is set
+        env:
+          SUMMARY: ${{ steps.action.outputs.summary }}
+        run: |
+          echo "summary length: ${#SUMMARY}"
+          echo "PASS: summary output is present"

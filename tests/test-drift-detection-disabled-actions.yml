@@ -1,0 +1,51 @@
+name: Test Atmos Terraform Plan - Drift Detection Mode with Actions Disabled
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run atmos terraform plan action in drift detection mode
+        id: action
+        uses: .
+        with:
+          component: test-component
+          stack: test-stack
+          sha: ${{ github.sha }}
+          atmos-config-path: ${{ github.workspace }}/tests/fixtures/atmos-config
+          drift-detection-mode-enabled: 'true'
+          plan-storage: 'false'
+          skip-checkout: 'true'
+          token: ${{ github.token }}
+
+      - name: Assert action completed successfully in drift detection mode
+        run: |
+          echo "Action completed without error in drift detection mode"
+          echo "PASS"
+
+      - name: Assert plan_file output is empty (no plan ran since actions disabled)
+        env:
+          ACTUAL: ${{ steps.action.outputs.plan_file }}
+        run: |
+          echo "actual plan_file: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "PASS: plan_file is empty as expected (github-actions-enabled=false)"
+          else
+            echo "FAIL: expected plan_file to be empty but got: $ACTUAL"
+            exit 1
+          fi
+
+      - name: Assert has-changes output is empty or false
+        env:
+          ACTUAL: ${{ steps.action.outputs.has-changes }}
+        run: |
+          echo "actual has-changes: $ACTUAL"
+          if [ -z "$ACTUAL" ] || [ "$ACTUAL" = "false" ]; then
+            echo "PASS: has-changes is empty or false as expected"
+          else
+            echo "FAIL: expected has-changes to be empty or false but got: $ACTUAL"
+            exit 1
+          fi

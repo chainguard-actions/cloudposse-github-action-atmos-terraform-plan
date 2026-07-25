@@ -1,0 +1,32 @@
+vars:
+  stage: test
+
+terraform:
+  backend_type: local
+  backend:
+    local:
+      path: "terraform.tfstate"
+
+components:
+  terraform:
+    mycomp:
+      settings:
+        github:
+          actions_enabled: true
+        integrations:
+          github:
+            gitops:
+              terraform-version: "1.5.2"
+              infracost-enabled: false
+              artifact-storage:
+                region:
+                bucket:
+                table:
+                role:
+                plan-repository-type:
+                metadata-repository-type:
+              role:
+                plan:
+                apply:
+      vars:
+        enabled: false

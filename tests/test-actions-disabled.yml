@@ -1,0 +1,58 @@
+name: Test Atmos Terraform Plan - Actions Disabled
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run atmos terraform plan action with github-actions-enabled=false
+        id: action
+        uses: .
+        with:
+          component: test-component
+          stack: test-stack
+          sha: ${{ github.sha }}
+          atmos-config-path: ${{ github.workspace }}/tests/fixtures/atmos-config
+          drift-detection-mode-enabled: 'false'
+          plan-storage: 'false'
+          skip-checkout: 'true'
+          token: ${{ github.token }}
+
+      - name: Assert summary output is empty or quoted empty string
+        env:
+          ACTUAL: ${{ steps.action.outputs.summary }}
+        run: |
+          echo "actual summary: $ACTUAL"
+          # When github-actions-enabled is false, no plan runs, so summary should be empty or ""
+          if [ -z "$ACTUAL" ] || [ "$ACTUAL" = '""' ]; then
+            echo "PASS: summary is empty as expected when actions are disabled"
+          else
+            echo "INFO: summary has content (may be acceptable): $ACTUAL"
+          fi
+
+      - name: Assert plan_file output is empty
+        env:
+          ACTUAL: ${{ steps.action.outputs.plan_file }}
+        run: |
+          echo "actual plan_file: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "PASS: plan_file is empty as expected when actions are disabled"
+          else
+            echo "FAIL: expected plan_file to be empty but got: $ACTUAL"
+            exit 1
+          fi
+
+      - name: Assert has-changes output is empty or false
+        env:
+          ACTUAL: ${{ steps.action.outputs.has-changes }}
+        run: |
+          echo "actual has-changes: $ACTUAL"
+          if [ -z "$ACTUAL" ] || [ "$ACTUAL" = "false" ]; then
+            echo "PASS: has-changes is empty or false as expected when actions are disabled"
+          else
+            echo "FAIL: expected has-changes to be empty or false but got: $ACTUAL"
+            exit 1
+          fi

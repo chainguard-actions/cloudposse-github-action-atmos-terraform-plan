@@ -1,0 +1,67 @@
+name: "Integration Tests"
+
+on:
+  workflow_dispatch: {}
+
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  AWS_REGION: us-east-2
+
+# Permissions required for assuming AWS identity
+permissions:
+  id-token: write
+  contents: read
+  actions: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - shell: bash
+        env:
+          RUNNER_TEMP: ${{ runner.temp }}
+          AWS_REGION_VAL: ${{ env.AWS_REGION }}
+          TERRAFORM_STATE_BUCKET: ${{ secrets.TERRAFORM_STATE_BUCKET }}
+          TERRAFORM_STATE_TABLE: ${{ secrets.TERRAFORM_STATE_TABLE }}
+          TERRAFORM_STATE_ROLE: ${{ secrets.TERRAFORM_STATE_ROLE }}
+          TERRAFORM_PLAN_ROLE: ${{ secrets.TERRAFORM_PLAN_ROLE }}
+        run: |
+          mkdir -p "$RUNNER_TEMP"
+          cp ./tests/terraform/atmos.yaml "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e 's#__INFRACOST_ENABLED__#false#g' "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_REGION__#${AWS_REGION_VAL}#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_BUCKET__#${TERRAFORM_STATE_BUCKET}#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_TABLE__#${TERRAFORM_STATE_TABLE}#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_TABLE__#${TERRAFORM_STATE_TABLE}#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__STORAGE_ROLE__#${TERRAFORM_STATE_ROLE}#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__PLAN_ROLE__#${TERRAFORM_PLAN_ROLE}#g" "$RUNNER_TEMP/atmos.yaml"
+          sed -i -e "s#__APPLY_ROLE__#${TERRAFORM_PLAN_ROLE}#g" "$RUNNER_TEMP/atmos.yaml"
+
+          for file in ./tests/terraform/stacks/catalog/*.yaml; do
+          if [ -f "$file" ]; then
+            sed -i -e "s#__INFRACOST_ENABLED__#false#g" "$file"
+            sed -i -e "s#__STORAGE_REGION__#${AWS_REGION_VAL}#g" "$file"          
+            sed -i -e "s#__STORAGE_BUCKET__#${TERRAFORM_STATE_BUCKET}#g" "$file"
+            sed -i -e "s#__STORAGE_TABLE__#${TERRAFORM_STATE_TABLE}#g" "$file"          
+            sed -i -e "s#__STORAGE_TABLE__#${TERRAFORM_STATE_TABLE}#g" "$file"
+            sed -i -e "s#__STORAGE_ROLE__#${TERRAFORM_STATE_ROLE}#g" "$file"
+            sed -i -e "s#__PLAN_ROLE__#${TERRAFORM_PLAN_ROLE}#g" "$file"
+            sed -i -e "s#__APPLY_ROLE__#${TERRAFORM_PLAN_ROLE}#g" "$file"
+          fi
+          done
+          
+      - name: Plan Atmos Component
+        uses: ./
+        with:
+          component: "foobar"
+          stack: "plat-ue2-sandbox"
+          atmos-config-path: ${{ runner.temp }}
+          skip-checkout: true
+          debug: true

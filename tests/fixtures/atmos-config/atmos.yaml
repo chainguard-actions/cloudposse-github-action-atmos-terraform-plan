@@ -1,4 +1,4 @@
-base_path: "../../.."
+base_path: "../.."
 components:
   terraform:
     base_path: "tests/fixtures/components/terraform"

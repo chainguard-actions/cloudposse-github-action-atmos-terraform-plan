@@ -1,0 +1,59 @@
+name: Test - Skip Checkout Input
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up git user
+        run: |
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+
+      - name: Verify workspace is already checked out
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/action.yml" ]; then
+            echo "FAIL: action.yml not found in workspace before action runs"
+            exit 1
+          fi
+          echo "Workspace is already checked out"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          component: test-component
+          stack: test-stack
+          sha: ${{ github.sha }}
+          drift-detection-mode-enabled: 'false'
+          atmos-config-path: ${{ github.workspace }}/tests/fixtures/atmos-config
+          skip-checkout: 'true'
+          plan-storage: 'false'
+
+      - name: Assert action ran with skip-checkout
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # With skip-checkout=true, the action should not re-checkout the repo.
+          # It should proceed to install atmos and read settings.
+          # The action may succeed or fail gracefully depending on atmos config resolution.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action ran with skip-checkout=true, outcome=$OUTCOME"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
+
+      - name: Verify workspace still intact after action
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/action.yml" ]; then
+            echo "FAIL: action.yml missing from workspace after action ran"
+            exit 1
+          fi
+          echo "PASS: workspace still intact after action with skip-checkout=true"

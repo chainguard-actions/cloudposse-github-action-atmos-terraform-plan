@@ -100,7 +100,7 @@ runs:
           "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
     - name: Checkout
       if: ${{ inputs.skip-checkout != 'true' }}
-      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         ref: ${{ inputs.sha }}
     - name: Set atmos cli config path vars
@@ -118,7 +118,7 @@ runs:
         install-wrapper: false
     - name: Get atmos settings
       id: atmos-settings
-      uses: cloudposse/github-action-atmos-get-setting@84e8a603795613161c5f1ed766f1c16b4312926c # v2
+      uses: cloudposse/github-action-atmos-get-setting@4b1fa78a8aaea6aa55733e473bf5e0a8533f24b3 # v2
       with:
         # Here we do not process-templates because that requires terraform. Which we install after fetching the version
         # processing templates here can cause an issue where cached terraform versions conflict with the version we want to install
@@ -212,7 +212,7 @@ runs:
         ATMOS_OPENTOFU_VERSION: ${{ fromJson(steps.atmos-settings.outputs.settings).opentofu-version }}
         INPUT_DEBUG: ${{ inputs.debug }}
       run: |
-        cat <<EOF > aqua.yaml
+        cat << EOF > aqua.yaml
         registries:
           - type: standard
             ref: v4.233.0
@@ -272,9 +272,8 @@ runs:
         ATMOS_BASE_PATH_INPUT: ${{ fromJson(steps.atmos-settings.outputs.settings).base-path }}
       run: |-
         # Set ATMOS_BASE_PATH allow `cloudposse/utils` provider to read atmos config from the correct path
-        ATMOS_BASE_PATH="${ATMOS_BASE_PATH_INPUT}"
-        safe_base_path=$(printf '%s' "$(realpath "${ATMOS_BASE_PATH:-./}")" | tr -d '\n\r')
-        echo "ATMOS_BASE_PATH=${safe_base_path}" >> $GITHUB_ENV
+        safe_base_path=$(printf '%s' "$ATMOS_BASE_PATH_INPUT" | tr -d '\n\r')
+        echo "ATMOS_BASE_PATH=$(realpath "${safe_base_path:-./}")" >> $GITHUB_ENV
     - name: Prepare Artifacts Directory
       if: ${{ fromJson(steps.atmos-settings.outputs.settings).github-actions-enabled || fromJson(steps.atmos-settings.outputs.settings).atmos-pro-enabled }}
       shell: bash
@@ -290,14 +289,15 @@ runs:
         INPUT_SHA: ${{ inputs.sha }}
         ATMOS_COMPONENT_PATH: ${{ fromJson(steps.atmos-settings.outputs.settings).component-path }}
       run: |
-        STACK_NAME=$(printf '%s' "$INPUT_STACK" | sed 's#/#_#g')
-        COMPONENT_PATH="$ATMOS_COMPONENT_PATH"
-        COMPONENT_NAME=$(printf '%s' "$INPUT_COMPONENT" | sed 's#/#_#g')
-        COMPONENT_SLUG="$STACK_NAME-$COMPONENT_NAME"
-        COMPONENT_CACHE_KEY=$(basename "$ATMOS_COMPONENT_PATH")
-        PLAN_FILE="$( realpath "${COMPONENT_PATH}")/$COMPONENT_SLUG-${INPUT_SHA}.planfile"
-        PLAN_FILE_JSON="$( realpath "${COMPONENT_PATH}")/$COMPONENT_SLUG-${INPUT_SHA}.planfile.json"
-        LOCK_FILE="$( realpath "${COMPONENT_PATH}")/.terraform.lock.hcl"
+        STACK_NAME=$(printf '%s' "$INPUT_STACK" | tr -d '\n\r' | sed 's#/#_#g')
+        COMPONENT_PATH=$(printf '%s' "$ATMOS_COMPONENT_PATH" | tr -d '\n\r')
+        COMPONENT_NAME=$(printf '%s' "$INPUT_COMPONENT" | tr -d '\n\r' | sed 's#/#_#g')
+        COMPONENT_SLUG=$(printf '%s' "$STACK_NAME-$COMPONENT_NAME" | tr -d '\n\r')
+        COMPONENT_CACHE_KEY=$(basename "$COMPONENT_PATH" | tr -d '\n\r')
+        SAFE_SHA=$(printf '%s' "$INPUT_SHA" | tr -d '\n\r')
+        PLAN_FILE="$(realpath "${COMPONENT_PATH}")/${COMPONENT_SLUG}-${SAFE_SHA}.planfile"
+        PLAN_FILE_JSON="$(realpath "${COMPONENT_PATH}")/${COMPONENT_SLUG}-${SAFE_SHA}.planfile.json"
+        LOCK_FILE="$(realpath "${COMPONENT_PATH}")/.terraform.lock.hcl"
 
         ISSUE_SUMMARY_FILE="$GITHUB_WORKSPACE/metadata/issue-description-${COMPONENT_SLUG}.md"
         STEP_SUMMARY_FILE="$GITHUB_WORKSPACE/metadata/step-summary-${COMPONENT_SLUG}.md"
@@ -305,30 +305,18 @@ runs:
 
         COMPONENT_RELPATH=$(realpath --relative-to="${PWD}" "${COMPONENT_PATH}")
 
-        safe_stack_name=$(printf '%s' "${STACK_NAME}" | tr -d '\n\r')
-        safe_component_name=$(printf '%s' "${COMPONENT_NAME}" | tr -d '\n\r')
-        safe_component_slug=$(printf '%s' "${COMPONENT_SLUG}" | tr -d '\n\r')
-        safe_component_relpath=$(printf '%s' "${COMPONENT_RELPATH}" | tr -d '\n\r')
-        safe_cache_key=$(printf '%s' "${COMPONENT_CACHE_KEY}" | tr -d '\n\r')
-        safe_plan_file=$(printf '%s' "${PLAN_FILE}" | tr -d '\n\r')
-        safe_plan_file_json=$(printf '%s' "${PLAN_FILE_JSON}" | tr -d '\n\r')
-        safe_lock_file=$(printf '%s' "${LOCK_FILE}" | tr -d '\n\r')
-        safe_summary_file=$(printf '%s' "${SUMMARY_FILE}" | tr -d '\n\r')
-        safe_step_summary_file=$(printf '%s' "${STEP_SUMMARY_FILE}" | tr -d '\n\r')
-        safe_issue_file=$(printf '%s' "${ISSUE_SUMMARY_FILE}" | tr -d '\n\r')
+        printf 'stack_name=%s\n' "$STACK_NAME" >> "$GITHUB_OUTPUT"
+        printf 'component_name=%s\n' "$COMPONENT_NAME" >> "$GITHUB_OUTPUT"
+        printf 'component_slug=%s\n' "$COMPONENT_SLUG" >> "$GITHUB_OUTPUT"
+        printf 'component_path=%s\n' "$COMPONENT_RELPATH" >> "$GITHUB_OUTPUT"
+        printf 'cache-key=%s\n' "$COMPONENT_CACHE_KEY" >> "$GITHUB_OUTPUT"
+        printf 'plan_file=%s\n' "$PLAN_FILE" >> "$GITHUB_OUTPUT"
+        printf 'plan_file_json=%s\n' "$PLAN_FILE_JSON" >> "$GITHUB_OUTPUT"
+        printf 'lock_file=%s\n' "$LOCK_FILE" >> "$GITHUB_OUTPUT"
 
-        echo "stack_name=${safe_stack_name}" >> $GITHUB_OUTPUT
-        echo "component_name=${safe_component_name}" >> $GITHUB_OUTPUT
-        echo "component_slug=${safe_component_slug}" >> $GITHUB_OUTPUT
-        echo "component_path=${safe_component_relpath}" >> $GITHUB_OUTPUT
-        echo "cache-key=${safe_cache_key}" >> $GITHUB_OUTPUT
-        echo "plan_file=${safe_plan_file}" >> $GITHUB_OUTPUT
-        echo "plan_file_json=${safe_plan_file_json}" >> $GITHUB_OUTPUT
-        echo "lock_file=${safe_lock_file}" >> $GITHUB_OUTPUT
-
-        echo "summary_file=${safe_summary_file}" >> $GITHUB_OUTPUT
-        echo "step_summary_file=${safe_step_summary_file}" >> $GITHUB_OUTPUT
-        echo "issue_file=${safe_issue_file}" >> $GITHUB_OUTPUT
+        printf 'summary_file=%s\n' "$SUMMARY_FILE" >> "$GITHUB_OUTPUT"
+        printf 'step_summary_file=%s\n' "$STEP_SUMMARY_FILE" >> "$GITHUB_OUTPUT"
+        printf 'issue_file=%s\n' "$ISSUE_SUMMARY_FILE" >> "$GITHUB_OUTPUT"
     - name: Cache .terraform
       id: cache
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -344,26 +332,25 @@ runs:
       env:
         ATMOS_PRO_BASE_URL: ${{ inputs.atmos-pro-base-url }}
         INPUT_ATMOS_PRO_UPLOAD_DEPLOYMENT_STATUS: ${{ inputs.atmos-pro-upload-deployment-status }}
-        GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-        GITHUB_EVENT_REPOSITORY_NAME: ${{ github.event.repository.name }}
-        VARS_COMPONENT_SLUG: ${{ steps.vars.outputs.component_slug }}
         INPUT_COMPONENT: ${{ inputs.component }}
-        VARS_COMPONENT_PATH: ${{ steps.vars.outputs.component_path }}
         INPUT_SHA: ${{ inputs.sha }}
         INPUT_STACK: ${{ inputs.stack }}
-        GITHUB_JOB_NAME: ${{ github.job }}
         INPUT_BRANDING_LOGO_IMAGE: ${{ inputs.branding-logo-image }}
         INPUT_BRANDING_LOGO_URL: ${{ inputs.branding-logo-url }}
-        ATMOS_ENABLE_INFRACOST: ${{ fromJson(steps.atmos-settings.outputs.settings).enable-infracost }}
         INPUT_DRIFT_DETECTION_MODE_ENABLED: ${{ inputs.drift-detection-mode-enabled }}
         INPUT_PR_COMMENT: ${{ inputs.pr-comment }}
         INPUT_DEBUG: ${{ inputs.debug }}
-        VARS_SUMMARY_FILE: ${{ steps.vars.outputs.summary_file }}
-        VARS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
-        VARS_STEP_SUMMARY_FILE: ${{ steps.vars.outputs.step_summary_file }}
-        VARS_ISSUE_FILE: ${{ steps.vars.outputs.issue_file }}
+        GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        GITHUB_EVENT_REPOSITORY_NAME: ${{ github.event.repository.name }}
+        GITHUB_JOB_NAME: ${{ github.job }}
+        ATMOS_COMPONENT_SLUG: ${{ steps.vars.outputs.component_slug }}
+        ATMOS_COMPONENT_PATH: ${{ steps.vars.outputs.component_path }}
+        ATMOS_SUMMARY_FILE: ${{ steps.vars.outputs.summary_file }}
+        ATMOS_STEP_SUMMARY_FILE: ${{ steps.vars.outputs.step_summary_file }}
+        ATMOS_ISSUE_FILE: ${{ steps.vars.outputs.issue_file }}
+        ATMOS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
+        ATMOS_ENABLE_INFRACOST: ${{ fromJson(steps.atmos-settings.outputs.settings).enable-infracost }}
         ATMOS_COMMAND: ${{ fromJson(steps.atmos-settings.outputs.settings).command }}
-        VARS_COMPONENT_PATH_FULL: ${{ steps.vars.outputs.component_path }}
       run: |
         # Verify tfcmt is installed
         # Since we disable exit on error, the real error will be swallowed later on
@@ -375,24 +362,20 @@ runs:
         set +e
 
         # Remove the environment file from the cache to avoid conflicts with workspace select
-        rm -f "./${VARS_COMPONENT_PATH}/.terraform/environment"
+        rm -f ./"$ATMOS_COMPONENT_PATH"/.terraform/environment
 
         TERRAFORM_OUTPUT_FILE="./terraform-${GITHUB_RUN_ID}-output.txt"
 
-        atmos_pro_flags=""
+        atmos_pro_flags=()
 
         if [[ "$INPUT_ATMOS_PRO_UPLOAD_DEPLOYMENT_STATUS" == "true" ]]; then
-          atmos_pro_flags+=" --upload-deployment-status=true"
+          atmos_pro_flags+=(--upload-deployment-status=true)
         fi
 
-        tfcmt_output_flags=()
+        # Build optional flags as arrays to keep values properly quoted
+        tfcmt_output_flag=()
         if [[ "$INPUT_PR_COMMENT" == "false" ]]; then
-          tfcmt_output_flags=(--output "$VARS_SUMMARY_FILE")
-        fi
-
-        tfcmt_patch_flags=()
-        if [[ "$INPUT_PR_COMMENT" == "true" ]]; then
-          tfcmt_patch_flags=(-patch)
+          tfcmt_output_flag=(--output "$ATMOS_SUMMARY_FILE")
         fi
 
         tfcmt_log_level="INFO"
@@ -400,13 +383,18 @@ runs:
           tfcmt_log_level="DEBUG"
         fi
 
+        tfcmt_plan_flag=()
+        if [[ "$INPUT_PR_COMMENT" == "true" ]]; then
+          tfcmt_plan_flag=(-patch)
+        fi
+
         tfcmt \
         --config ${GITHUB_ACTION_PATH}/config/summary.yaml \
         -owner "$GITHUB_REPOSITORY_OWNER" \
         -repo "$GITHUB_EVENT_REPOSITORY_NAME" \
-        -var "target:$VARS_COMPONENT_SLUG" \
+        -var "target:$ATMOS_COMPONENT_SLUG" \
         -var "component:$INPUT_COMPONENT" \
-        -var "componentPath:$VARS_COMPONENT_PATH" \
+        -var "componentPath:$ATMOS_COMPONENT_PATH" \
         -var "commitSHA:$INPUT_SHA" \
         -var "stack:$INPUT_STACK" \
         -var "job:$GITHUB_JOB_NAME" \
@@ -414,18 +402,18 @@ runs:
         -var "logoUrl:$INPUT_BRANDING_LOGO_URL" \
         -var "infracost_enabled:$ATMOS_ENABLE_INFRACOST" \
         -var "driftModeEnabled:$INPUT_DRIFT_DETECTION_MODE_ENABLED" \
-        "${tfcmt_output_flags[@]}" \
+        "${tfcmt_output_flag[@]}" \
         --log-level "$tfcmt_log_level" \
         plan \
-        "${tfcmt_patch_flags[@]}" \
+        "${tfcmt_plan_flag[@]}" \
         -- \
           atmos terraform plan "$INPUT_COMPONENT" \
           --stack "$INPUT_STACK" \
-          -out="$VARS_PLAN_FILE" \
+          -out="$ATMOS_PLAN_FILE" \
           -lock=false \
           -input=false \
           -no-color \
-          ${atmos_pro_flags} \
+          "${atmos_pro_flags[@]}" \
         &> ${TERRAFORM_OUTPUT_FILE}
 
         TERRAFORM_RESULT=$?
@@ -435,9 +423,9 @@ runs:
           --config ${GITHUB_ACTION_PATH}/config/summary.yaml \
           -owner "$GITHUB_REPOSITORY_OWNER" \
           -repo "$GITHUB_EVENT_REPOSITORY_NAME" \
-          -var "target:$VARS_COMPONENT_SLUG" \
+          -var "target:$ATMOS_COMPONENT_SLUG" \
           -var "component:$INPUT_COMPONENT" \
-          -var "componentPath:$VARS_COMPONENT_PATH" \
+          -var "componentPath:$ATMOS_COMPONENT_PATH" \
           -var "commitSHA:$INPUT_SHA" \
           -var "stack:$INPUT_STACK" \
           -var "job:$GITHUB_JOB_NAME" \
@@ -445,7 +433,7 @@ runs:
           -var "logoUrl:$INPUT_BRANDING_LOGO_URL" \
           -var "infracost_enabled:$ATMOS_ENABLE_INFRACOST" \
           -var "driftModeEnabled:$INPUT_DRIFT_DETECTION_MODE_ENABLED" \
-          --output "$VARS_SUMMARY_FILE" \
+          --output "$ATMOS_SUMMARY_FILE" \
           --log-level "$tfcmt_log_level" \
           plan \
           -- \
@@ -457,11 +445,11 @@ runs:
         if [[ "$INPUT_DRIFT_DETECTION_MODE_ENABLED" == "true" ]]; then
           # Split summary to 2 files - issue and step summary files
           # Remove \0 at the end of the grep output
-          grep -Pzo '(.|\n)*(?=_______________ISSUE-MARKDOWN_______________\n)' "$VARS_SUMMARY_FILE" | grep -Pav  "\x00" > "$VARS_STEP_SUMMARY_FILE"
-          grep -Pzo '(?<=_______________ISSUE-MARKDOWN_______________\n)(.|\n)*' "$VARS_SUMMARY_FILE" | grep -Pav  "\x00" > "$VARS_ISSUE_FILE"
-          rm -f "$VARS_SUMMARY_FILE"
+          grep -Pzo '(.|\n)*(?=_______________ISSUE-MARKDOWN_______________\n)' "$ATMOS_SUMMARY_FILE" | grep -Pav  "\x00" > "$ATMOS_STEP_SUMMARY_FILE"
+          grep -Pzo '(?<=_______________ISSUE-MARKDOWN_______________\n)(.|\n)*' "$ATMOS_SUMMARY_FILE" | grep -Pav  "\x00" > "$ATMOS_ISSUE_FILE"
+          rm -f "$ATMOS_SUMMARY_FILE"
         else
-          mv "$VARS_SUMMARY_FILE" "$VARS_STEP_SUMMARY_FILE"
+          mv "$ATMOS_SUMMARY_FILE" "$ATMOS_STEP_SUMMARY_FILE"
         fi
 
         cat "${TERRAFORM_OUTPUT_FILE}"
@@ -494,8 +482,8 @@ runs:
         # Convert planfile to JSON if Infracost is enabled
         # Infracost requires a JSON representation of the plan to analyze cost changes
         if [[ "$ATMOS_ENABLE_INFRACOST" == "true" && "${TERRAFORM_RESULT}" == "0" ]]; then
-          cd "$VARS_COMPONENT_PATH_FULL"
-          "$ATMOS_COMMAND" show -json "$VARS_PLAN_FILE" > "$VARS_PLAN_FILE.json"
+          cd "$ATMOS_COMPONENT_PATH"
+          "$ATMOS_COMMAND" show -json "$ATMOS_PLAN_FILE" > "$ATMOS_PLAN_FILE.json"
         fi
     - name: Configure State AWS Credentials
       uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
@@ -550,19 +538,17 @@ runs:
       id: results
       shell: bash
       env:
-        VARS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
-        VARS_PLAN_FILE_JSON: ${{ steps.vars.outputs.plan_file_json }}
+        ATMOS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
+        ATMOS_PLAN_FILE_JSON: ${{ steps.vars.outputs.plan_file_json }}
       run: |
-        if [[ -f "$VARS_PLAN_FILE" ]]; then
-          safe_plan_file=$(printf '%s' "$VARS_PLAN_FILE" | tr -d '\n\r')
-          echo "plan_file=${safe_plan_file}" >> $GITHUB_OUTPUT
+        if [[ -f "$ATMOS_PLAN_FILE" ]]; then
+          echo "plan_file=$ATMOS_PLAN_FILE" >> $GITHUB_OUTPUT
         else
           echo "plan_file=" >> $GITHUB_OUTPUT
         fi
 
-        if [[ -f "$VARS_PLAN_FILE_JSON" ]]; then
-          safe_plan_file_json=$(printf '%s' "$VARS_PLAN_FILE_JSON" | tr -d '\n\r')
-          echo "plan_file_json=${safe_plan_file_json}" >> $GITHUB_OUTPUT
+        if [[ -f "$ATMOS_PLAN_FILE_JSON" ]]; then
+          echo "plan_file_json=$ATMOS_PLAN_FILE_JSON" >> $GITHUB_OUTPUT
         else
           echo "plan_file_json=" >> $GITHUB_OUTPUT
         fi
@@ -571,20 +557,20 @@ runs:
       id: infracost
       shell: bash
       env:
-        VARS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
+        ATMOS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
         INPUT_STACK: ${{ inputs.stack }}
         INPUT_COMPONENT: ${{ inputs.component }}
       run: |
         echo "Running Infracost diff"
         infracost diff \
-          --path="${VARS_PLAN_FILE}.json" \
+          --path="$ATMOS_PLAN_FILE.json" \
           --format=diff \
-          --project-name "${INPUT_STACK}-${INPUT_COMPONENT}" \
+          --project-name "$INPUT_STACK-$INPUT_COMPONENT" \
           --out-file=/tmp/infracost.txt
         infracost diff \
-          --path="${VARS_PLAN_FILE}.json" \
+          --path="$ATMOS_PLAN_FILE.json" \
           --format=json \
-          --project-name "${INPUT_STACK}-${INPUT_COMPONENT}" \
+          --project-name "$INPUT_STACK-$INPUT_COMPONENT" \
           --out-file=/tmp/infracost.json
 
         echo "finished=true" >> $GITHUB_OUTPUT
@@ -592,9 +578,9 @@ runs:
       if: ${{ steps.infracost.outputs.finished == 'true' && inputs.debug == 'true' }}
       shell: bash
       env:
-        VARS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
+        ATMOS_PLAN_FILE: ${{ steps.vars.outputs.plan_file }}
       run: |
-        cat "${VARS_PLAN_FILE}.json"
+        cat "$ATMOS_PLAN_FILE.json"
         cat /tmp/infracost.txt
         cat /tmp/infracost.json
     - name: Set Infracost Variables
@@ -602,51 +588,51 @@ runs:
       id: infracost-diff
       shell: bash
       env:
-        VARS_STEP_SUMMARY_FILE: ${{ steps.vars.outputs.step_summary_file }}
-      run: "INFRACOST_DIFF_TOTAL_MONTHLY_COST=$(cat /tmp/infracost.json | jq --raw-output .diffTotalMonthlyCost)\nINFRACOST_DETAILS_DIFF_BREAKDOWN=\"$(cat /tmp/infracost.txt)\"\n\nif [[ \"${INFRACOST_DIFF_TOTAL_MONTHLY_COST}\" == \"0\" ]]; then\n  INFRA_COST_SUMMARY=\"Infracost Estimate: monthly cost will not change\"\nelif [[ \"${INFRACOST_DIFF_TOTAL_MONTHLY_COST:0:1}\" == \"-\" ]]; then\n  INFRA_COST_SUMMARY=\"Infracost Estimate: monthly cost will decrease by ${INFRACOST_DIFF_TOTAL_MONTHLY_COST} \U0001F4C9\"\nelse\n  INFRA_COST_SUMMARY=\"Infracost Estimate: monthly cost will increase by ${INFRACOST_DIFF_TOTAL_MONTHLY_COST} \U0001F4C8\"\nfi\n\nsed -i \"s/%INFRACOST_SUMMARY%/${INFRA_COST_SUMMARY}/\" \"$VARS_STEP_SUMMARY_FILE\"\nsed -i -e '/%INFRACOST_DIFF%/{r /tmp/infracost.txt' -e 'd}' \"$VARS_STEP_SUMMARY_FILE\"\n"
+        ATMOS_STEP_SUMMARY_FILE: ${{ steps.vars.outputs.step_summary_file }}
+      run: "INFRACOST_DIFF_TOTAL_MONTHLY_COST=$(cat /tmp/infracost.json | jq --raw-output .diffTotalMonthlyCost)\nINFRACOST_DETAILS_DIFF_BREAKDOWN=\"$(cat /tmp/infracost.txt)\"\n\nif [[ \"${INFRACOST_DIFF_TOTAL_MONTHLY_COST}\" == \"0\" ]]; then\n  INFRA_COST_SUMMARY=\"Infracost Estimate: monthly cost will not change\"\nelif [[ \"${INFRACOST_DIFF_TOTAL_MONTHLY_COST:0:1}\" == \"-\" ]]; then\n  INFRA_COST_SUMMARY=\"Infracost Estimate: monthly cost will decrease by ${INFRACOST_DIFF_TOTAL_MONTHLY_COST} \U0001F4C9\"\nelse\n  INFRA_COST_SUMMARY=\"Infracost Estimate: monthly cost will increase by ${INFRACOST_DIFF_TOTAL_MONTHLY_COST} \U0001F4C8\"\nfi\n\nsed -i \"s/%INFRACOST_SUMMARY%/${INFRA_COST_SUMMARY}/\" \"$ATMOS_STEP_SUMMARY_FILE\"\nsed -i -e '/%INFRACOST_DIFF%/{r /tmp/infracost.txt' -e 'd}' \"$ATMOS_STEP_SUMMARY_FILE\"\n"
     - name: Store Component Metadata to Artifacts
       if: ${{ (fromJson(steps.atmos-settings.outputs.settings).github-actions-enabled || fromJson(steps.atmos-settings.outputs.settings).atmos-pro-enabled) && inputs.drift-detection-mode-enabled == 'true' }}
       shell: bash
       env:
         INPUT_STACK: ${{ inputs.stack }}
         INPUT_COMPONENT: ${{ inputs.component }}
-        VARS_COMPONENT_PATH: ${{ steps.vars.outputs.component_path }}
+        ATMOS_COMPONENT_PATH: ${{ steps.vars.outputs.component_path }}
         ATMOS_PLAN_CHANGES: ${{ steps.atmos-plan.outputs.changes }}
         ATMOS_PLAN_ERROR: ${{ steps.atmos-plan.outputs.error }}
-        VARS_COMPONENT_SLUG: ${{ steps.vars.outputs.component_slug }}
+        ATMOS_COMPONENT_SLUG: ${{ steps.vars.outputs.component_slug }}
       run: |
-        echo -n "{ \"stack\": \"${INPUT_STACK}\", \"component\": \"${INPUT_COMPONENT}\", \"componentPath\": \"${VARS_COMPONENT_PATH}\", \"drifted\": \"${ATMOS_PLAN_CHANGES}\", \"error\": \"${ATMOS_PLAN_ERROR}\" }" > "metadata/${VARS_COMPONENT_SLUG}.metadata.json"
+        echo -n '{ "stack": "'"$INPUT_STACK"'", "component": "'"$INPUT_COMPONENT"'", "componentPath": "'"$ATMOS_COMPONENT_PATH"'", "drifted": '"$ATMOS_PLAN_CHANGES"', "error": '"$ATMOS_PLAN_ERROR"' }' > "metadata/$ATMOS_COMPONENT_SLUG.metadata.json"
     - name: Publish Summary or Generate GitHub Issue Description for Drift Detection
       id: summary
       shell: bash
       working-directory: ${{ steps.vars.outputs.component_path }}
       env:
         INPUT_DRIFT_DETECTION_MODE_ENABLED: ${{ inputs.drift-detection-mode-enabled }}
+        ATMOS_ISSUE_FILE: ${{ steps.vars.outputs.issue_file }}
         ATMOS_PLAN_NO_CHANGES: ${{ steps.atmos-plan.outputs.no-changes }}
-        VARS_ISSUE_FILE: ${{ steps.vars.outputs.issue_file }}
-        VARS_STEP_SUMMARY_FILE: ${{ steps.vars.outputs.step_summary_file }}
+        ATMOS_STEP_SUMMARY_FILE: ${{ steps.vars.outputs.step_summary_file }}
       run: |
         if [[ "$INPUT_DRIFT_DETECTION_MODE_ENABLED" == "true" ]]; then
-          STEP_SUMMARY_FILE="$VARS_ISSUE_FILE"
+          STEP_SUMMARY_FILE="$ATMOS_ISSUE_FILE"
 
           if [[ "$ATMOS_PLAN_NO_CHANGES" == "true" ]]; then
-            rm -f "${STEP_SUMMARY_FILE}"
+            rm -f ${STEP_SUMMARY_FILE}
           fi
 
         else
-          STEP_SUMMARY_FILE="$VARS_STEP_SUMMARY_FILE"
+          STEP_SUMMARY_FILE="$ATMOS_STEP_SUMMARY_FILE"
         fi
 
 
-        if [ -f "${STEP_SUMMARY_FILE}" ]; then
+        if [ -f ${STEP_SUMMARY_FILE} ]; then
           echo "${STEP_SUMMARY_FILE} found"
 
-          STEP_SUMMARY=$(cat "${STEP_SUMMARY_FILE}" | jq -Rs .)
+          STEP_SUMMARY=$(cat ${STEP_SUMMARY_FILE} | jq -Rs .)
           echo "result=${STEP_SUMMARY}" >> $GITHUB_OUTPUT
 
           if [[ "$INPUT_DRIFT_DETECTION_MODE_ENABLED" == "false" ]]; then
             echo "Drift detection mode disabled"
-            cat "$STEP_SUMMARY_FILE" >> $GITHUB_STEP_SUMMARY
+            cat $STEP_SUMMARY_FILE >> $GITHUB_STEP_SUMMARY
           fi
         else
           echo "${STEP_SUMMARY_FILE} not found"

@@ -8,7 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
-| v5.2.1 | [`v5.2.1`](https://github.com/chainguard-actions/cloudposse-github-action-atmos-terraform-plan/tree/v5.2.1) | — |
+| v5.2.1 | [`v5.2.1`](https://github.com/chainguard-actions/cloudposse-github-action-atmos-terraform-plan/tree/v5.2.1) | [`14f327f`](https://github.com/cloudposse/github-action-atmos-terraform-plan/commit/14f327fc2e11ca935dc53300ad5fefb7a07fd849) |
 | v5.7.1 | [`v5.7.1`](https://github.com/chainguard-actions/cloudposse-github-action-atmos-terraform-plan/tree/v5.7.1) | [`d4e329e`](https://github.com/cloudposse/github-action-atmos-terraform-plan/commit/d4e329e1a5ceaf4cd044a402113d2824d57e4ba6) |
 
 ## Privacy
